@@ -65,9 +65,8 @@ export default function DashboardOverview() {
 
 	useEffect(() => {
 		if (data) {
-			const uniqueVisualizations = data.visualizations.results.filter((viz, index, self) =>
-				index === self.findIndex((v) => v.id === viz.id)
-			)
+ 			const visualizationMap = new Map(data.visualizations.results.map(viz => [viz.id, viz]));
+ 			const uniqueVisualizations = Array.from(visualizationMap.values());
 			setVisualizations(uniqueVisualizations)
 		}
 	}, [data])
