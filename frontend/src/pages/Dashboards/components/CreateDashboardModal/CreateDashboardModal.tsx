@@ -40,9 +40,8 @@ const CreateDashboardModal = () => {
 		{ value: 'option1', label: 'Option 1' }, // Duplicate for testing
 	]
 
-	 const dashboardMap = new Map(dashboards.map(d => [d.id, d]));
- 	dashboardMap.set(newDashboard.id, newDashboard);
- 	const uniqueDashboards = Array.from(dashboardMap.values());
+	const optionMap = new Map(options.map(option => [option.value, option]));
+	const uniqueOptions = Array.from(optionMap.values());
 
 	return (
 		<>
