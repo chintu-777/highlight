@@ -53,9 +53,9 @@ const DashboardsContextProvider = ({ children }) => {
 
 		const newDashboard = result.data?.upsertDashboard
 		if (newDashboard) {
-			const uniqueDashboards = dashboards.filter((dashboard, index, self) =>
-				index === self.findIndex((d) => d.id === dashboard.id)
-			)
+			const dashboardMap = new Map(dashboards.map(d => [d.id, d]));
+			dashboardMap.set(newDashboard.id, newDashboard);
+			const uniqueDashboards = Array.from(dashboardMap.values());
 			setDashboards([...uniqueDashboards, newDashboard])
 		}
 
