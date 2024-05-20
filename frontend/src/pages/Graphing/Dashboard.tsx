@@ -30,16 +30,18 @@ import {
 import { vars } from '@highlight-run/ui/vars'
 import { message } from 'antd'
 import clsx from 'clsx'
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { Helmet } from 'react-helmet'
 import { Link, useNavigate } from 'react-router-dom'
 
 import {
 	useDeleteGraphMutation,
 	useGetVisualizationQuery,
+	useUpsertGraphMutation,
 	useUpsertVisualizationMutation,
 } from '@/graph/generated/hooks'
 import { GetVisualizationQuery } from '@/graph/generated/operations'
+import { GraphInput } from '@/graph/generated/schemas'
 import { useProjectId } from '@/hooks/useProjectId'
 import { useSearchTime } from '@/hooks/useSearchTime'
 import { DashboardCard } from '@/pages/Graphing/components/DashboardCard'
@@ -51,10 +53,13 @@ import * as style from './Dashboard.css'
 
 export const HeaderDivider = () => <Box cssClass={style.headerDivider} />
 
-export const Dashboard = () => {
+export const Dashboard = ({data}) => {
 	const { dashboard_id } = useParams<{
 		dashboard_id: string
 	}>()
+	const uniqueGroupByKey = data.groupByKey.filter((key, index, self) =>
+    		index === self.findIndex((k) => k === key)
+  	);
 
 	const sensors = useSensors(
 		useSensor(PointerSensor),
@@ -107,6 +112,8 @@ export const Dashboard = () => {
 	const navigate = useNavigate()
 
 	const [deleteGraph] = useDeleteGraphMutation()
+	const [upsertGraph] = useUpsertGraphMutation()
+	const tempId = useId()
 
 	const noGraphs = graphs?.length === 0
 
@@ -355,6 +362,7 @@ export const Dashboard = () => {
 														editing={editing}
 													>
 														<Graph
+															groupByKey={uniqueGroupByKey ?? undefined}
 															title={g.title}
 															viewConfig={getViewConfig(
 																g.type,
@@ -404,6 +412,115 @@ export const Dashboard = () => {
 															limitMetric={
 																g.limitMetric ??
 																undefined
+															}
+															onClone={
+																isTemp
+																	? undefined
+																	: () => {
+																			const graphInput: GraphInput =
+																				{
+																					visualizationId:
+																						dashboard_id!,
+																					bucketByKey:
+																						g.bucketByKey,
+																					bucketCount:
+																						g.bucketCount,
+																					display:
+																						g.display,
+																					functionType:
+																						g.functionType,
+																					groupByKey:
+																						g.groupByKey,
+																					limit: g.limit,
+																					limitFunctionType:
+																						g.limitFunctionType,
+																					limitMetric:
+																						g.limitMetric,
+																					metric: g.metric,
+																					nullHandling:
+																						g.nullHandling,
+																					productType:
+																						g.productType,
+																					query: g.query,
+																					title: g.title,
+																					type: g.type,
+																				}
+
+																			upsertGraph(
+																				{
+																					variables:
+																						{
+																							graph: graphInput,
+																						},
+																					optimisticResponse:
+																						{
+																							upsertGraph:
+																								{
+																									...graphInput,
+																									id: `temp-${tempId}`,
+																									__typename:
+																										'Graph',
+																								},
+																						},
+																					update(
+																						cache,
+																						result,
+																					) {
+																						const vizId =
+																							cache.identify(
+																								{
+																									id: dashboard_id,
+																									__typename:
+																										'Visualization',
+																								},
+																							)
+																						const graphId =
+																							cache.identify(
+																								{
+																									id: result
+																										.data
+																										?.upsertGraph
+																										.id,
+																									__typename:
+																										'Graph',
+																								},
+																							)
+																						cache.modify(
+																							{
+																								id: vizId,
+																								fields: {
+																									graphs(
+																										existing: any[] = [],
+																									) {
+																										return existing.concat(
+																											[
+																												{
+																													__ref: graphId,
+																												},
+																											],
+																										)
+																									},
+																								},
+																							},
+																						)
+																					},
+																				},
+																			)
+																				.then(
+																					() => {
+																						message.success(
+																							`Metric view cloned`,
+																						)
+																					},
+																				)
+																				.catch(
+																					() => {
+																						message.error(
+																							'Failed to clone metric view',
+																						)
+																					},
+																				)
+																	  }
 															}
 															onDelete={
 																isTemp
